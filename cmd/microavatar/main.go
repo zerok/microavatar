@@ -26,6 +26,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Verbose logging")
+	rootCmd.AddCommand(serveCmd)
 }
 
 func main() {

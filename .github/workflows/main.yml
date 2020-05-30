@@ -1,0 +1,24 @@
+name: CI
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-go@v1.1.1
+      with:
+        go-version: "1.14.2"
+    - name: Run tests
+      run: go test ./... -v
+    - name: Run tests
+      run: |
+        set -e
+        mkdir -p dist 
+        cd cmd/microavatar
+        go build -o ../../dist/microavatar
+    - uses: actions/upload-artifact@v2
+      with:
+        name: linux-binary
+        path: dist/microavatar

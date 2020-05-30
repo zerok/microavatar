@@ -9,6 +9,7 @@ import (
 )
 
 var addr string
+var cacheFolder string
 var gravatarFallback bool
 var emails map[string]string
 
@@ -20,6 +21,7 @@ var serveCmd = &cobra.Command{
 			c.Logger = logger
 			c.FallbackToGravatar = gravatarFallback
 			c.Resizer = resizer.NewImageMagick()
+			c.CacheFolder = cacheFolder
 		})
 		hs := http.Server{}
 		hs.Handler = s
@@ -32,6 +34,7 @@ var serveCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.Flags().StringVar(&addr, "addr", "localhost:8888", "Address to listen on")
+	serveCmd.Flags().StringVar(&cacheFolder, "cache-folder", "cache", "Path to the cache folder")
 	serveCmd.Flags().StringToStringVar(&emails, "email", make(map[string]string), "email=image mapping(s)")
 	serveCmd.Flags().BoolVar(&gravatarFallback, "gravatar", false, "Fall back to gravatar")
 }

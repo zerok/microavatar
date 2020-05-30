@@ -9,7 +9,7 @@ before:
 builds:
 - env:
   - CGO_ENABLED=0
-  main: ./cmd/microavatar/main.go
+  main: ./cmd/microavatar/
   binary: microavatar
   goos:
     - linux

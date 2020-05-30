@@ -26,6 +26,7 @@ jobs:
     - name: Run tests
       run: |
         set -e
+        chmod +x magickbin/magick
         export PATH=${PWD}/magickbin:${PATH}
         go test ./... -v
     - name: Run tests

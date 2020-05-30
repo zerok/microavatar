@@ -14,7 +14,7 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('magickbin/magick') }}
     - name: Install magick
       if: steps.magickcache.outputs.cache-hit != 'true'
-      run:
+      run: |
         set -e
         mkdir -p magickbin
         curl -o magickcbin/magick https://imagemagick.org/download/binaries/magick

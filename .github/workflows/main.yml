@@ -10,19 +10,13 @@ jobs:
     - uses: actions/setup-go@v1.1.3
       with:
         go-version: "1.16.2"
-    - name: Install magick
-      run: |
-        set -e
-        mkdir -p magickbin
-        curl -o magickbin/magick https://imagemagick.org/download/binaries/magick
-        chmod +x magickbin/magick
     - name: Run tests
       run: |
         set -e
-        chmod +x magickbin/magick
-        export PATH=${PWD}/magickbin:${PATH}
+        apt-get update
+        apt-get install -y imagemagick
         go test ./... -v
-    - name: Run tests
+    - name: Build
       run: |
         set -e
         mkdir -p dist 

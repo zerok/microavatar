@@ -13,7 +13,12 @@ import (
 func requireImageDimensions(t *testing.T, path string, width int64, height int64) {
 	t.Helper()
 	var output bytes.Buffer
-	cmd := exec.Command("magick", "identify", path)
+	var cmd *exec.Cmd
+	if _, err := exec.LookPath("magic"); err == nil {
+		cmd = exec.Command("magick", "identify", path)
+	} else {
+		cmd = exec.Command("identify", path)
+	}
 	cmd.Stdout = &output
 	require.NoError(t, cmd.Run())
 	elems := strings.Split(output.String(), " ")

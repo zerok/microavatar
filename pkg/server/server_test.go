@@ -26,9 +26,9 @@ func TestFallback(t *testing.T) {
 		require.Equal(t, 307, w.Code)
 		require.Equal(t, "https://secure.gravatar.com/avatar/something?s=80", w.Header().Get("Location"))
 	})
-	t.Run("skip-fallback", func(t *testing.T) {
+	t.Run("explicit-fallback", func(t *testing.T) {
 		s := New(func(c *Configuration) {
-			c.FallbackToGravatar = true
+			c.FallbackToGravatar = false
 		})
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/avatar/something?default=404", nil)

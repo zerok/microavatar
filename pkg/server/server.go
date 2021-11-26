@@ -16,6 +16,7 @@ import (
 
 type Configuration struct {
 	EmailToImage       map[string]string
+	DefaultToImage     map[string]string
 	CacheFolder        string
 	Logger             zerolog.Logger
 	FallbackToGravatar bool
@@ -75,33 +76,33 @@ func (s *server) handleAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defaultImage := strFromQuery(r, []string{"default", "d"}, "")
+	forceDefault := boolFromQuery(r, []string{"forcedefault", "f"}, false)
 	image, ok := s.hashToImage[emailhash]
-	if !ok {
+	var cachePath string
+	if !ok || forceDefault {
+		if !forceDefault && s.cfg.FallbackToGravatar {
+			http.Redirect(w, r, fmt.Sprintf("https://secure.gravatar.com/avatar/%s?s=%d", emailhash, size), http.StatusTemporaryRedirect)
+			return
+		}
 		if defaultImage != "" {
 			switch defaultImage {
 			case "404":
 				http.Error(w, "Not found", http.StatusNotFound)
 				return
-			case "mm":
-			case "mp":
-			case "identicon":
-			case "monsterid":
-			case "wavatar":
-			case "retro":
-			case "robohash":
 			default:
-				http.Redirect(w, r, defaultImage, http.StatusTemporaryRedirect)
-				return
+				image, defaultImage = s.getDefaultImagePath(defaultImage)
 			}
+		} else {
+			image, defaultImage = s.getDefaultImagePath("nobody")
 		}
-		if s.cfg.FallbackToGravatar {
-			http.Redirect(w, r, fmt.Sprintf("https://secure.gravatar.com/avatar/%s?s=%d", emailhash, size), http.StatusTemporaryRedirect)
+		if image == "" {
+			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
+		cachePath = filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("_default_%s.s%d.jpg", defaultImage, size))
+	} else {
+		cachePath = filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("%s.s%d.jpg", emailhash, size))
 	}
-	cachePath := filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("%s.s%d.jpg", emailhash, size))
 	if err := s.createIfMissing(ctx, cachePath, image, size); err != nil {
 		logger.Error().Err(err).Msg("Failed to generate image")
 		http.Error(w, "Failed to generate image", http.StatusInternalServerError)
@@ -109,6 +110,15 @@ func (s *server) handleAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, cachePath)
+}
+
+func (s *server) getDefaultImagePath(defaultImageName string) (string, string) {
+	nobody := s.cfg.DefaultToImage["nobody"]
+	requested, hasRequested := s.cfg.DefaultToImage[defaultImageName]
+	if hasRequested {
+		return requested, defaultImageName
+	}
+	return nobody, "nobody"
 }
 
 func (s *server) createIfMissing(ctx context.Context, output string, input string, size int64) error {
@@ -146,6 +156,16 @@ func strFromQuery(r *http.Request, paramNames []string, defaultValue string) str
 		val := r.URL.Query().Get(p)
 		if val != "" {
 			return val
+		}
+	}
+	return defaultValue
+}
+
+func boolFromQuery(r *http.Request, paramNames []string, defaultValue bool) bool {
+	for _, p := range paramNames {
+		val := r.URL.Query().Get(p)
+		if val != "" {
+			return val == "y"
 		}
 	}
 	return defaultValue

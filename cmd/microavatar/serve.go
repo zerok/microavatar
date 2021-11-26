@@ -12,12 +12,14 @@ var addr string
 var cacheFolder string
 var gravatarFallback bool
 var emails map[string]string
+var defaults map[string]string
 
 var serveCmd = &cobra.Command{
 	Use: "serve",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s := server.New(func(c *server.Configuration) {
 			c.EmailToImage = emails
+			c.DefaultToImage = defaults
 			c.Logger = logger
 			c.FallbackToGravatar = gravatarFallback
 			c.Resizer = resizer.NewImageMagick()
@@ -36,5 +38,6 @@ func init() {
 	serveCmd.Flags().StringVar(&addr, "addr", "localhost:8888", "Address to listen on")
 	serveCmd.Flags().StringVar(&cacheFolder, "cache-folder", "cache", "Path to the cache folder")
 	serveCmd.Flags().StringToStringVar(&emails, "email", make(map[string]string), "email=image mapping(s)")
+	serveCmd.Flags().StringToStringVar(&defaults, "default", make(map[string]string), "nobody=./static.png for instance")
 	serveCmd.Flags().BoolVar(&gravatarFallback, "gravatar", false, "Fall back to gravatar")
 }

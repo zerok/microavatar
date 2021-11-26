@@ -48,6 +48,7 @@ func New(configs ...Configurator) *server {
 		})
 	})
 	r.Get("/avatar/{emailhash}", s.handleAvatar)
+	r.Get("/static/defaults/{name}.{size}.jpg", s.handleDefaultImage)
 	s.r = r
 	return s
 }
@@ -60,6 +61,34 @@ type server struct {
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.r.ServeHTTP(w, r)
+}
+
+func (s *server) handleDefaultImage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := zerolog.Ctx(ctx)
+	name := chi.URLParam(r, "name")
+	rawSize := chi.URLParam(r, "size")
+	size, err := strconv.ParseInt(rawSize, 10, 32)
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	if size > 512 || size < 1 {
+		http.Error(w, "Invalid size", http.StatusBadRequest)
+		return
+	}
+	image, finalName := s.getDefaultImagePath(name)
+	if image == "" {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	cachePath := filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("_default_%s.s%d.jpg", finalName, size))
+	if err := s.createIfMissing(ctx, cachePath, image, size); err != nil {
+		logger.Error().Err(err).Msg("Failed to generate image")
+		http.Error(w, "Failed to generate image", http.StatusInternalServerError)
+		return
+	}
+	http.ServeFile(w, r, cachePath)
 }
 
 func (s *server) handleAvatar(w http.ResponseWriter, r *http.Request) {
@@ -90,19 +119,14 @@ func (s *server) handleAvatar(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Not found", http.StatusNotFound)
 				return
 			default:
-				image, defaultImage = s.getDefaultImagePath(defaultImage)
+				s.redirectToDefault(w, r, defaultImage, size)
+				return
 			}
-		} else {
-			image, defaultImage = s.getDefaultImagePath("nobody")
 		}
-		if image == "" {
-			http.Error(w, "Not found", http.StatusNotFound)
-			return
-		}
-		cachePath = filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("_default_%s.s%d.jpg", defaultImage, size))
-	} else {
-		cachePath = filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("%s.s%d.jpg", emailhash, size))
+		s.redirectToDefault(w, r, "nobody", size)
+		return
 	}
+	cachePath = filepath.Join(s.cfg.CacheFolder, fmt.Sprintf("%s.s%d.jpg", emailhash, size))
 	if err := s.createIfMissing(ctx, cachePath, image, size); err != nil {
 		logger.Error().Err(err).Msg("Failed to generate image")
 		http.Error(w, "Failed to generate image", http.StatusInternalServerError)
@@ -110,6 +134,16 @@ func (s *server) handleAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, cachePath)
+}
+
+func (s *server) redirectToDefault(w http.ResponseWriter, r *http.Request, defaultImage string, size int64) {
+	image, defaultImage := s.getDefaultImagePath(defaultImage)
+	if image == "" {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/static/defaults/%s.%d.jpg", defaultImage, size), http.StatusTemporaryRedirect)
+	return
 }
 
 func (s *server) getDefaultImagePath(defaultImageName string) (string, string) {
